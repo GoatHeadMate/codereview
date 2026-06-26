@@ -9,3 +9,4 @@ AgentScope 2.0 RC4 权限系统的实战陷阱：RC4 的 Permission.DENY + inher
 过程内 taint 的"最后一公里"价值：之前候选路径只追踪方法调用链（A 调 B 调 C 到 sink），补全表达式级传播后能识别 String cmd = input; Runtime.exec(cmd) 这类中间变量赋值链，staticConfidence 从方法级粗判提升到语句级精判，实测减少了 hunter 需要人工验证 sanitizer 的场景。
 疑惑与问题
 AgentScope 2.0 RC4 的并行 agent_spawn 稳定性问题如何绕过？ 实测中 supervisor 发起并行 agent_spawn 后，SDK 有时在 tool-call turn 结束后直接关闭流，导致 supervisor 没有机会输出最终 JSON 汇总。目前只能选择串行执行（慢但稳定）或并行执行（快但有概率丢结果），是否有已知的 workaround，还是需要等 RC5 修复？
+白盒分析生成的候选路径数量较多时，hunter 子智能体的 token 消耗和审计耗时会明显增长，不确定应该在分析阶段做更激进的剪枝还是在智能体侧做分批处理。
