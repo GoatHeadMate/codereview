@@ -1,0 +1,11 @@
+本周目标
+增强白盒分析引擎的过程内 taint 追踪精度：在现有 JavaParser 候选路径分析基础上，补全表达式级污点传播（赋值/return/foreach）和 sink 参数语义标注，提升 staticConfidence 判定的准确性，减少 hunter 误报。
+将 Python Claude sidecar 替换为 Java AgentScope 2.0 SDK，统一技术栈：消除 Python 进程管理的运维复杂度与跨进程通信开销，将 AI 智能体编排能力内化到 Java 后端，实现 supervisor → hunter 的全 Java 链路。
+本周进展
+过程内表达式级 taint 分析与 sink 知识补强完成（master 分支）：实现了 MethodTaintSummarizer 的赋值/return/foreach 定点迭代传播和模板替换（String.format/replace）传播识别，新增 sink 参数语义标注（区分"哪个参数是危险输入"），同步泛化了 SSRF 转发器 sink 识别规则并补强了命令执行/SSRF 的 hunter 判定知识。另外编写了 SymbolSolver 原理说明与审计系统全流程技术文档。
+Java AgentScope 2.0 替换 Claude sidecar 并完成多轮调试（AgentScope 分支）：实现 AgentScopeGateway 对接 agentscope-harness 2.0.0-RC4 的 HarnessAgent API，包括子智能体声明式注册、事件流收集（AgentScopeEventCollector）与日志隔离、supervisor JSON 强制返回、漏洞发现页前端适配；经过 6 轮 fix commit 解决了权限穿透、空结果误判、事件根因丢失等问题，目前并行调度与缓存机制仍在修复中尚未合并。
+收获与分享
+AgentScope 2.0 RC4 权限系统的实战陷阱：RC4 的 Permission.DENY + inheritParentPermissions(false) 实测不生效——父级 DENY 会穿透到子智能体导致全部工具被拒绝（复现 3 次），且并行 agent_spawn 可能导致 supervisor 流提前结束而无最终 JSON。当前的务实策略是权限控制降级为 prompt 层行为约束，并行失败时直接抛异常暴露问题而非静默兜底，等 SDK 修复后再启用 harness 级权限。
+过程内 taint 的"最后一公里"价值：之前候选路径只追踪方法调用链（A 调 B 调 C 到 sink），补全表达式级传播后能识别 String cmd = input; Runtime.exec(cmd) 这类中间变量赋值链，staticConfidence 从方法级粗判提升到语句级精判，实测减少了 hunter 需要人工验证 sanitizer 的场景。
+疑惑与问题
+AgentScope 2.0 RC4 的并行 agent_spawn 稳定性问题如何绕过？ 实测中 supervisor 发起并行 agent_spawn 后，SDK 有时在 tool-call turn 结束后直接关闭流，导致 supervisor 没有机会输出最终 JSON 汇总。目前只能选择串行执行（慢但稳定）或并行执行（快但有概率丢结果），是否有已知的 workaround，还是需要等 RC5 修复？
